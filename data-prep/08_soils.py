@@ -1,27 +1,21 @@
-"""Soils erodibility and geology.
+"""Soils erodibility.
 
-Soils    USDA SSURGO through Soil Data Access. Map unit polygons inside each
-         watershed carry the surface horizon K factor (Kw) of the dominant
-         component, a standard erodibility indicator.
-Geology  USGS OFR 98-38 geologic map of Puerto Rico, island wide.
+Soils come from USDA SSURGO through Soil Data Access. Map unit polygons
+inside each watershed carry the surface horizon K factor (Kw) of the
+dominant component, a standard erodibility indicator.
 
-Outputs
+Output
   public/data/vectors/soils_k.geojson
-  public/data/vectors/geology.geojson
 """
-
-import json
-import zipfile
 
 import geopandas as gpd
 import pandas as pd
 import requests
 from shapely import wkt as shapely_wkt
 
-from common import CACHE, VECTORS, download_file, write_geojson
+from common import CACHE, VECTORS, write_geojson
 
 SDA_URL = "https://sdmdataaccess.sc.egov.usda.gov/Tabular/post.rest"
-GEOLOGY_ZIP = "https://mrdata.usgs.gov/geology/pr/ofr-98-38.zip"
 
 
 def sda_query(query: str) -> list[list]:
@@ -99,35 +93,9 @@ def soils() -> None:
     write_geojson(merged, VECTORS / "soils_k.geojson")
 
 
-def geology() -> None:
-    zip_path = download_file(GEOLOGY_ZIP, CACHE / "geology_ofr9838.zip")
-    extract = CACHE / "geology"
-    if not extract.exists():
-        with zipfile.ZipFile(zip_path) as archive:
-            archive.extractall(extract)
-    shapefiles = list(extract.rglob("*.shp"))
-    print("  shapefiles:", [s.name for s in shapefiles])
-    polygons = None
-    for shp in shapefiles:
-        frame = gpd.read_file(shp)
-        if frame.geometry.geom_type.isin(["Polygon", "MultiPolygon"]).any():
-            polygons = frame
-            break
-    if polygons is None:
-        raise RuntimeError("No polygon layer in the geology download")
-    print("  columns:", list(polygons.columns))
-    if polygons.crs is None:
-        polygons = polygons.set_crs("EPSG:4326")
-    polygons = polygons.to_crs("EPSG:4326")
-    polygons["geometry"] = polygons.geometry.simplify(0.0005, preserve_topology=True)
-    write_geojson(polygons, VECTORS / "geology.geojson", precision=4)
-
-
 def main() -> None:
     print("SSURGO soils K factor")
     soils()
-    print("Geologic map")
-    geology()
 
 
 if __name__ == "__main__":

@@ -360,7 +360,7 @@ function bindBasemapControls(map: MapLibreMap, groups: BasemapLayerGroups, onlin
     streets.disabled = true;
     streets.closest(".basemap-option")?.classList.add("is-disabled");
   }
-  apply((options.find((option) => option.checked)?.value as BasemapMode) ?? "satellite");
+  apply((options.find((option) => option.checked)?.value as BasemapMode) ?? "streets");
 }
 
 // ---------------------------------------------------------------------------
@@ -485,35 +485,7 @@ function addVectorLayers(map: MapLibreMap): void {
   const before = firstSymbolLayer(map);
   const hidden = { visibility: "none" as const };
 
-  // Geology and soils sit under everything else.
-  map.addSource("geology", { type: "geojson", data: "./data/vectors/geology.geojson" });
-  map.addLayer(
-    {
-      id: "geology-fill",
-      type: "fill",
-      source: "geology",
-      layout: hidden,
-      paint: {
-        "fill-color": [
-          "match",
-          ["slice", ["coalesce", ["get", "FMATN"], ""], 0, 1],
-          "Q",
-          "#e7dcb8",
-          "T",
-          "#dcae67",
-          "K",
-          "#8fae7e",
-          "J",
-          "#7e9dae",
-          "#b9a7c9",
-        ],
-        "fill-opacity": 0.55,
-        "fill-outline-color": "#8d8d8d",
-      },
-    },
-    before,
-  );
-
+  // Soils sit under everything else.
   map.addSource("soils", { type: "geojson", data: "./data/vectors/soils_k.geojson" });
   map.addLayer(
     {
@@ -766,9 +738,10 @@ function addVectorLayers(map: MapLibreMap): void {
       id: "gauges-flow-points",
       type: "circle",
       source: "gauges-flow",
+      layout: hidden,
       paint: {
         "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3.6, 13, 6.5],
-        "circle-color": ["case", ["get", "active"], "#1d6b2a", "#8fa694"],
+        "circle-color": ["case", ["get", "active"], "#e0731d", "#cfae85"],
         "circle-opacity": ["case", ["get", "active"], 0.95, 0.7],
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 1.2,
@@ -788,7 +761,7 @@ function addVectorLayers(map: MapLibreMap): void {
       layout: hidden,
       paint: {
         "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 3.4, 13, 6],
-        "circle-color": ["case", ["get", "active"], "#4a5fb0", "#9aa2c2"],
+        "circle-color": ["case", ["get", "active"], "#6db4e3", "#b6cfe0"],
         "circle-opacity": ["case", ["get", "active"], 0.95, 0.7],
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 1.2,
@@ -1003,9 +976,7 @@ function renderLayerGroup(
       setLayerVisibility(map, definition.layers, checkbox.checked);
       definition.onToggle?.(checkbox.checked);
     });
-    if (definition.checked) {
-      setLayerVisibility(map, definition.layers, true);
-    }
+    setLayerVisibility(map, definition.layers, definition.checked);
     container.append(row);
   }
 }
@@ -1050,11 +1021,6 @@ function updateSedimentLegend(states: Record<string, boolean>): void {
         `<span class="legend-item"><span class="legend-swatch" style="background:#7c3116"></span>0.5</span>`,
     );
   }
-  if (states.geology) {
-    blocks.push(
-      `<span class="legend-item"><strong>Geology</strong> colored by unit age, click for the unit code</span>`,
-    );
-  }
   legend.innerHTML = blocks.join("<br/>");
 }
 
@@ -1094,7 +1060,6 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
     "rivers-lines",
     "streams-lines",
     "soils-fill",
-    "geology-fill",
     "roads-watersheds-lines",
     "watersheds-fill",
     "reservoirs-fill",
@@ -1164,18 +1129,6 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
       `<div class="popup-title">${escapeHtml(properties.muname ?? "Soil map unit")}</div>
        <div class="popup-row"><span>Map unit</span><span>${escapeHtml(properties.musym ?? "")}</span></div>
        <div class="popup-row"><span>K factor</span><span>${escapeHtml(properties.kfactor ?? "not rated")}</span></div>`,
-    );
-  });
-  map.on("click", "geology-fill", (event) => {
-    const properties = event.features?.[0]?.properties;
-    if (!properties) {
-      return;
-    }
-    popup(
-      map,
-      event,
-      `<div class="popup-title">Geologic unit ${escapeHtml(properties.FMATN ?? "unknown")}</div>
-       <div class="popup-sub">USGS OFR 98-38 geologic map</div>`,
     );
   });
   map.on("click", "roads-watersheds-lines", (event) => {
@@ -1446,7 +1399,7 @@ async function initialize(): Promise<void> {
           note: "Named rivers island wide",
           symbolCss: "background:#2f7fae",
           layers: ["rivers-lines"],
-          checked: true,
+          checked: false,
         },
         {
           id: "streams",
@@ -1459,16 +1412,16 @@ async function initialize(): Promise<void> {
         {
           id: "gauges-flow",
           label: "Streamflow gauges",
-          note: "USGS, green when active",
-          symbolCss: "background:#1d6b2a;border-radius:50%",
+          note: "USGS, orange when active",
+          symbolCss: "background:#e0731d;border-radius:50%",
           layers: ["gauges-flow-points"],
-          checked: true,
+          checked: false,
         },
         {
           id: "gauges-rain",
           label: "Rain gauges",
-          note: "USGS and NOAA GHCN stations",
-          symbolCss: "background:#4a5fb0;border-radius:50%",
+          note: "USGS and NOAA GHCN, light blue when active",
+          symbolCss: "background:#6db4e3;border-radius:50%",
           layers: ["gauges-rain-points"],
           checked: false,
         },
@@ -1510,15 +1463,6 @@ async function initialize(): Promise<void> {
           checked: false,
           onToggle: sedimentToggle("soils"),
         },
-        {
-          id: "geology",
-          label: "Geology",
-          note: "USGS geologic map units",
-          symbolCss: "background:linear-gradient(90deg,#e7dcb8,#8fae7e,#b9a7c9)",
-          layers: ["geology-fill"],
-          checked: false,
-          onToggle: sedimentToggle("geology"),
-        },
       ]);
 
       renderLayerGroup(map, "access-layers", [
@@ -1547,12 +1491,20 @@ async function initialize(): Promise<void> {
 
       const elevationToggle = element<HTMLInputElement>("elevation-toggle");
       const elevationOpacity = element<HTMLInputElement>("elevation-opacity");
+      // Color ramp legend matching the elevation color function.
+      const rampSpan = ELEVATION_STOPS[ELEVATION_STOPS.length - 1][0];
+      element<HTMLDivElement>("elevation-ramp-bar").style.background =
+        `linear-gradient(90deg, ${ELEVATION_STOPS.map(
+          ([feet, [red, green, blue]]) =>
+            `rgb(${red},${green},${blue}) ${((feet / rampSpan) * 100).toFixed(1)}%`,
+        ).join(", ")})`;
       elevationToggle.addEventListener("change", () => {
         setLayerVisibility(map, ["elevation-layer"], elevationToggle.checked);
         element("elevation-opacity-wrap").classList.toggle(
           "is-hidden",
           !elevationToggle.checked,
         );
+        element("elevation-legend").classList.toggle("is-hidden", !elevationToggle.checked);
       });
       elevationOpacity.addEventListener("input", () => {
         map.setPaintProperty(

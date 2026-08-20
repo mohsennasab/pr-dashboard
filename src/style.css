@@ -286,6 +286,22 @@ body {
   min-width: 0;
 }
 
+.ramp-legend {
+  padding: 2px 0 8px 28px;
+}
+.ramp-bar {
+  height: 10px;
+  border-radius: 4px;
+  border: 1px solid rgb(0 0 0 / 12%);
+}
+.ramp-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  margin-top: 3px;
+}
+
 .category-legend {
   display: flex;
   flex-wrap: wrap;

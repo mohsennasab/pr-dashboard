@@ -94,12 +94,6 @@ SOURCES = [
         "url": "https://sdmdataaccess.sc.egov.usda.gov/",
     },
     {
-        "layer": "Geology",
-        "source": "USGS Open File Report 98-38",
-        "details": "Geologic map of Puerto Rico, island wide.",
-        "url": "https://mrdata.usgs.gov/geology/pr/",
-    },
-    {
         "layer": "Roads",
         "source": "US Census TIGER/Line 2024",
         "details": "Primary and secondary roads island wide plus all roads"

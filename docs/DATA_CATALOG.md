@@ -16,7 +16,6 @@ Every layer in the dashboard with its source. Data retrieved 2026-08-19.
 | Landslide susceptibility | [USGS Open File Report 2020-1022](https://www.sciencebase.gov/catalog/item/61087009d34ef8d70565c154) | Susceptibility to rainfall triggered landslides, resampled from 5 m to about 15 m for the web. |
 | Land cover | [NOAA C-CAP 2010, Puerto Rico](https://coast.noaa.gov/digitalcoast/data/ccapregional.html) | Coastal Change Analysis Program land cover at 30 m. |
 | Soils | [USDA SSURGO through Soil Data Access](https://sdmdataaccess.sc.egov.usda.gov/) | Map units inside the study watersheds with the surface horizon K factor of the dominant component. |
-| Geology | [USGS Open File Report 98-38](https://mrdata.usgs.gov/geology/pr/) | Geologic map of Puerto Rico, island wide. |
 | Roads | [US Census TIGER/Line 2024](https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html) | Primary and secondary roads island wide plus all roads inside the study watersheds. |
 | Satellite basemap | [Google Maps tiles](https://www.google.com/help/terms_maps/) | Streamed at view time under the Google Maps terms. |
 | Street basemap | [OpenFreeMap, OpenStreetMap contributors](https://openfreemap.org/) | Drawn basemap style streamed at view time. |

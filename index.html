@@ -109,6 +109,12 @@
               <input id="elevation-opacity" type="range" min="10" max="100" value="65" />
               <output id="elevation-opacity-value" for="elevation-opacity">65%</output>
             </div>
+            <div id="elevation-legend" class="ramp-legend is-hidden" aria-hidden="true">
+              <div id="elevation-ramp-bar" class="ramp-bar"></div>
+              <div class="ramp-ticks">
+                <span>0</span><span>1,100</span><span>2,200</span><span>3,300</span><span>4,400 ft</span>
+              </div>
+            </div>
             <div class="layer-row">
               <label class="switch-label" for="terrain-toggle">
                 <span class="layer-symbol terrain-symbol" aria-hidden="true"></span>
@@ -156,15 +162,15 @@
               <h2 id="basemap-heading">Basemap</h2>
             </div>
             <div id="basemap-options" class="basemap-options" role="radiogroup" aria-labelledby="basemap-heading">
-              <label class="basemap-option selected" for="basemap-satellite">
-                <input id="basemap-satellite" type="radio" name="basemap" value="satellite" checked />
-                <span class="swatch satellite-swatch" aria-hidden="true"></span>
-                <span><strong>Satellite</strong><small>Google imagery with labels</small></span>
-              </label>
-              <label class="basemap-option" for="basemap-streets">
-                <input id="basemap-streets" type="radio" name="basemap" value="streets" />
+              <label class="basemap-option selected" for="basemap-streets">
+                <input id="basemap-streets" type="radio" name="basemap" value="streets" checked />
                 <span class="swatch streets-swatch" aria-hidden="true"></span>
                 <span><strong>Streets</strong><small>OpenFreeMap drawn basemap</small></span>
+              </label>
+              <label class="basemap-option" for="basemap-satellite">
+                <input id="basemap-satellite" type="radio" name="basemap" value="satellite" />
+                <span class="swatch satellite-swatch" aria-hidden="true"></span>
+                <span><strong>Satellite</strong><small>Google imagery with labels</small></span>
               </label>
               <label class="basemap-option" for="basemap-topo">
                 <input id="basemap-topo" type="radio" name="basemap" value="topo" />
@@ -238,7 +244,7 @@
           <div class="about-grid">
             <section>
               <h3>What it shows</h3>
-              <p>Reservoirs and drainage areas, rivers, stream and rain gauges, hurricane tracks, terrain in 2D and 3D, landslides, land cover, soils, geology, and roads. Every layer comes from a public federal source listed in the data catalog.</p>
+              <p>Reservoirs and drainage areas, rivers, stream and rain gauges, hurricane tracks, terrain in 2D and 3D, landslides, land cover, soils, and roads. Every layer comes from a public federal source listed in the data catalog.</p>
             </section>
             <section>
               <h3>Reservoir figures</h3>

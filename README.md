@@ -17,8 +17,7 @@ details.
   agency station pages
 - View terrain as hillshade, an elevation color ramp, or a full 3D scene
 - Draw a cross section anywhere and download the elevation profile as CSV
-- Explore landslides, landslide susceptibility, land cover, soils, geology,
-  and roads
+- Explore landslides, landslide susceptibility, land cover, soils, and roads
 
 ## Data
 
