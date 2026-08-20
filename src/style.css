@@ -80,6 +80,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.topbar-contact {
+  margin: 0 auto;
+  padding: 0 14px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.topbar-contact a {
+  color: var(--accent);
+}
 .topbar-actions {
   display: flex;
   align-items: center;
@@ -740,6 +750,9 @@ body {
   }
   .topbar h1 {
     font-size: 0.98rem;
+  }
+  .topbar-contact {
+    display: none;
   }
   .reservoir-picker-label {
     display: none;
