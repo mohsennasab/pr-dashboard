@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1c4d52" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <meta
+      name="description"
+      content="Interactive map of six Puerto Rico reservoirs and their watersheds built from public federal data."
+    />
+    <title>Puerto Rico Reservoir Watersheds</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#map">Skip to map</a>
+
+    <div id="app" class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <button id="panel-toggle" class="icon-button mobile-only" type="button" aria-label="Open map layers" aria-controls="side-panel" aria-expanded="false">
+            <span aria-hidden="true">☰</span>
+          </button>
+          <div>
+            <p class="eyebrow">Public data explorer</p>
+            <h1>Puerto Rico Reservoir Watersheds</h1>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <label class="reservoir-picker-label" for="reservoir-picker">Go to</label>
+          <select id="reservoir-picker" class="reservoir-picker" aria-label="Fly to a reservoir">
+            <option value="">Island view</option>
+          </select>
+          <button id="about-button" class="text-button" type="button">About</button>
+        </div>
+      </header>
+
+      <aside id="side-panel" class="side-panel" aria-label="Map controls">
+        <div class="panel-scroll">
+          <section class="control-section" aria-labelledby="watersheds-heading">
+            <div class="section-heading">
+              <h2 id="watersheds-heading">Reservoirs and watersheds</h2>
+            </div>
+            <div id="water-context-layers" class="layer-list"></div>
+          </section>
+
+          <section class="control-section" aria-labelledby="storms-heading">
+            <div class="section-heading">
+              <h2 id="storms-heading">Hurricane tracks</h2>
+              <span class="info-chip">IBTrACS since 1980</span>
+            </div>
+            <div class="layer-row">
+              <label class="switch-label" for="storms-toggle">
+                <span class="layer-symbol storm-symbol" aria-hidden="true"></span>
+                <span><strong>Tracks near the island</strong><small>Storms that passed within 500 km</small></span>
+              </label>
+              <input id="storms-toggle" class="switch" type="checkbox" />
+            </div>
+            <div id="storm-controls" class="storm-controls is-hidden">
+              <div class="layer-row">
+                <label class="switch-label" for="storm-names-toggle">
+                  <span class="layer-symbol name-symbol" aria-hidden="true">A</span>
+                  <span><strong>Storm names</strong><small>Labels along each track</small></span>
+                </label>
+                <input id="storm-names-toggle" class="switch" type="checkbox" />
+              </div>
+              <div class="storm-years">
+                <label for="storm-year-min">Seasons</label>
+                <input id="storm-year-min" type="number" min="1980" max="2026" value="1980" />
+                <span>to</span>
+                <input id="storm-year-max" type="number" min="1980" max="2026" value="2026" />
+              </div>
+              <div class="storm-search">
+                <input id="storm-search" type="text" list="storm-list" placeholder="Find a storm, for example Maria 2017" aria-label="Find a storm by name" />
+                <datalist id="storm-list"></datalist>
+                <button id="storm-clear" class="quiet-button" type="button">Show all</button>
+              </div>
+              <div id="storm-legend" class="category-legend"></div>
+            </div>
+          </section>
+
+          <section class="control-section" aria-labelledby="water-heading">
+            <div class="section-heading">
+              <h2 id="water-heading">Rivers and gauges</h2>
+            </div>
+            <div id="water-layers" class="layer-list"></div>
+          </section>
+
+          <section class="control-section" aria-labelledby="terrain-heading">
+            <div class="section-heading">
+              <h2 id="terrain-heading">Terrain</h2>
+              <span class="info-chip">USGS 3DEP</span>
+            </div>
+            <div class="layer-row">
+              <label class="switch-label" for="hillshade-toggle">
+                <span class="layer-symbol hillshade-symbol" aria-hidden="true"></span>
+                <span><strong>Hillshade</strong><small>Shaded relief</small></span>
+              </label>
+              <input id="hillshade-toggle" class="switch" type="checkbox" />
+            </div>
+            <div class="layer-row">
+              <label class="switch-label" for="elevation-toggle">
+                <span class="layer-symbol elevation-symbol" aria-hidden="true"></span>
+                <span><strong>Elevation color</strong><small>Feet above sea level</small></span>
+              </label>
+              <input id="elevation-toggle" class="switch" type="checkbox" />
+            </div>
+            <div id="elevation-opacity-wrap" class="opacity-row is-hidden">
+              <label for="elevation-opacity">Opacity</label>
+              <input id="elevation-opacity" type="range" min="10" max="100" value="65" />
+              <output id="elevation-opacity-value" for="elevation-opacity">65%</output>
+            </div>
+            <div class="layer-row">
+              <label class="switch-label" for="terrain-toggle">
+                <span class="layer-symbol terrain-symbol" aria-hidden="true"></span>
+                <span><strong>3D terrain</strong><small>Tilt and rotate to explore relief</small></span>
+              </label>
+              <input id="terrain-toggle" class="switch" type="checkbox" />
+            </div>
+            <div id="terrain-exaggeration-wrap" class="opacity-row is-hidden">
+              <label for="terrain-exaggeration">Exaggeration</label>
+              <input id="terrain-exaggeration" type="range" min="1" max="3" step="0.1" value="1.4" />
+              <output id="terrain-exaggeration-value" for="terrain-exaggeration">1.4×</output>
+            </div>
+            <button id="scene-toggle" class="primary-button" type="button" aria-pressed="false">Tilt to 3D view</button>
+            <button id="crosssection-button" class="primary-button secondary" type="button" aria-pressed="false">Draw a cross section</button>
+            <p id="crosssection-hint" class="tool-hint is-hidden">Click points along your line. Double click to finish. Press Escape to cancel.</p>
+          </section>
+
+          <section class="control-section" aria-labelledby="sediment-heading">
+            <div class="section-heading">
+              <h2 id="sediment-heading">Sediment context</h2>
+            </div>
+            <div id="sediment-layers" class="layer-list"></div>
+            <div id="susceptibility-opacity-wrap" class="opacity-row is-hidden">
+              <label for="susceptibility-opacity">Opacity</label>
+              <input id="susceptibility-opacity" type="range" min="10" max="100" value="70" />
+              <output id="susceptibility-opacity-value" for="susceptibility-opacity">70%</output>
+            </div>
+            <div id="landcover-opacity-wrap" class="opacity-row is-hidden">
+              <label for="landcover-opacity">Opacity</label>
+              <input id="landcover-opacity" type="range" min="10" max="100" value="70" />
+              <output id="landcover-opacity-value" for="landcover-opacity">70%</output>
+            </div>
+            <div id="sediment-legend" class="category-legend"></div>
+          </section>
+
+          <section class="control-section" aria-labelledby="access-heading">
+            <div class="section-heading">
+              <h2 id="access-heading">Roads</h2>
+            </div>
+            <div id="access-layers" class="layer-list"></div>
+          </section>
+
+          <section class="control-section" aria-labelledby="basemap-heading">
+            <div class="section-heading">
+              <h2 id="basemap-heading">Basemap</h2>
+            </div>
+            <div id="basemap-options" class="basemap-options" role="radiogroup" aria-labelledby="basemap-heading">
+              <label class="basemap-option selected" for="basemap-satellite">
+                <input id="basemap-satellite" type="radio" name="basemap" value="satellite" checked />
+                <span class="swatch satellite-swatch" aria-hidden="true"></span>
+                <span><strong>Satellite</strong><small>Google imagery with labels</small></span>
+              </label>
+              <label class="basemap-option" for="basemap-streets">
+                <input id="basemap-streets" type="radio" name="basemap" value="streets" />
+                <span class="swatch streets-swatch" aria-hidden="true"></span>
+                <span><strong>Streets</strong><small>OpenFreeMap drawn basemap</small></span>
+              </label>
+              <label class="basemap-option" for="basemap-topo">
+                <input id="basemap-topo" type="radio" name="basemap" value="topo" />
+                <span class="swatch topo-swatch" aria-hidden="true"></span>
+                <span><strong>USGS topo</strong><small>Contours and named features</small></span>
+              </label>
+              <label class="basemap-option" for="basemap-none">
+                <input id="basemap-none" type="radio" name="basemap" value="none" />
+                <span class="swatch nobasemap-swatch" aria-hidden="true"></span>
+                <span><strong>None</strong><small>Plain background</small></span>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <footer class="panel-footer">
+          <button id="reset-view" class="quiet-button" type="button">Reset island view</button>
+          <a class="quiet-button" href="./docs/DATA_CATALOG.html" target="_blank" rel="noopener">Data catalog</a>
+        </footer>
+      </aside>
+
+      <main class="map-stage">
+        <div id="map" role="application" aria-label="Interactive map of Puerto Rico reservoir watersheds"></div>
+
+        <section id="reservoir-card" class="reservoir-card is-hidden" aria-live="polite">
+          <div class="card-header">
+            <div>
+              <p class="section-kicker" id="reservoir-card-kicker"></p>
+              <h2 id="reservoir-card-title"></h2>
+            </div>
+            <button id="reservoir-card-close" class="icon-button" type="button" aria-label="Close reservoir card">×</button>
+          </div>
+          <div id="reservoir-card-body" class="card-body"></div>
+        </section>
+
+        <section id="profile-panel" class="profile-panel is-hidden" aria-labelledby="profile-heading">
+          <div class="card-header">
+            <div>
+              <p class="section-kicker">Cross section</p>
+              <h2 id="profile-heading">Elevation profile</h2>
+            </div>
+            <div class="profile-actions">
+              <button id="profile-download" class="quiet-button" type="button">Download CSV</button>
+              <button id="profile-close" class="icon-button" type="button" aria-label="Close profile">×</button>
+            </div>
+          </div>
+          <p id="profile-stats" class="profile-stats"></p>
+          <div id="profile-chart" class="profile-chart"></div>
+        </section>
+
+        <div id="loading-panel" class="loading-panel" role="status" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <div><strong>Preparing the map</strong><small id="loading-message">Loading layers</small></div>
+        </div>
+
+        <div id="map-message" class="map-message is-hidden" role="alert"></div>
+      </main>
+    </div>
+
+    <dialog id="about-dialog" class="about-dialog">
+      <form method="dialog">
+        <header>
+          <div>
+            <p class="eyebrow">About this map</p>
+            <h2>Puerto Rico Reservoir Watersheds</h2>
+          </div>
+          <button class="icon-button" value="close" aria-label="Close about window">×</button>
+        </header>
+        <div class="dialog-content">
+          <p class="lead">An interactive view of six reservoirs in the mountains of Puerto Rico, the watersheds that drain to them, and the public data that describes them.</p>
+          <div class="about-grid">
+            <section>
+              <h3>What it shows</h3>
+              <p>Reservoirs and drainage areas, rivers, stream and rain gauges, hurricane tracks, terrain in 2D and 3D, landslides, land cover, soils, geology, and roads. Every layer comes from a public federal source listed in the data catalog.</p>
+            </section>
+            <section>
+              <h3>Reservoir figures</h3>
+              <p>Storage capacities and sedimentation figures on the reservoir cards come from published USGS sedimentation survey reports. Each card links to its report.</p>
+            </section>
+            <section>
+              <h3>Watershed boundaries</h3>
+              <p>Drainage areas were delineated from the USGS 3DEP terrain model at each dam and should be treated as reconnaissance level boundaries.</p>
+            </section>
+            <section>
+              <h3>Cross sections</h3>
+              <p>Profiles sample the 3DEP terrain model, about 10 meter resolution inside the study watersheds and about 30 meters elsewhere. Elevations are in feet.</p>
+            </section>
+          </div>
+          <p class="dialog-note">This is a data viewer, not a design document. Confirm any measurement against the original sources before using it in an engineering decision.</p>
+        </div>
+        <footer>
+          <button class="primary-button" value="close">Return to map</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

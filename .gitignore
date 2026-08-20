@@ -1,0 +1,8 @@
+node_modules/
+dist/
+data-prep/cache/
+data-prep/__pycache__/
+*.pyc
+.env
+Thumbs.db
+.DS_Store
