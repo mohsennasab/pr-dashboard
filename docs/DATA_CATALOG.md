@@ -6,7 +6,7 @@ Every layer in the dashboard with its source. Data retrieved 2026-08-19.
 |---|---|---|
 | Elevation and cross sections | [USGS 3DEP seamless DEM](https://www.usgs.gov/3d-elevation-program) | One third arc second (about 10 m) inside the study watersheds, one arc second (about 30 m) island wide. Elevations converted to feet. |
 | 3D terrain and hillshade | [Mapterhorn terrain tiles](https://mapterhorn.com/attribution) | Global terrain tiles streamed at view time for the 3D scene and shaded relief. |
-| Watershed boundaries | [Delineated from USGS 3DEP](https://www.usgs.gov/3d-elevation-program) | Drainage area upstream of each dam, delineated with pysheds from the 10 m DEM. Reconnaissance level boundaries. |
+| Study watersheds | [USGS Watershed Boundary Dataset](https://www.usgs.gov/national-hydrography/watershed-boundary-dataset) | The HUC12 subwatershed mapped at each dam. Its published area is the drainage area shown on the reservoir cards. |
 | HUC12 boundaries, rivers, waterbodies | [USGS NHDPlus High Resolution](https://www.usgs.gov/national-hydrography/nhdplus-high-resolution) | Flowlines, waterbody polygons, and the HUC12 framework from the National Hydrography Dataset Plus HR map service. |
 | Reservoir storage figures | [USGS sedimentation survey reports](https://www.usgs.gov/centers/cfwsc/science/sedimentation-surveys-puerto-rico) | Original and surveyed capacities from the published USGS report for each reservoir. Each reservoir card links to its report. |
 | Streamflow gauges | [USGS National Water Information System](https://waterservices.usgs.gov/) | Sites in Puerto Rico with discharge records, active and discontinued, with period of record and drainage area. |

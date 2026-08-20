@@ -17,6 +17,7 @@ from common import (
     RASTERS,
     RESERVOIRS,
     VALUE_SCALE,
+    fetch_3dep_dem,
 )
 
 
@@ -29,7 +30,16 @@ def main() -> None:
         from rasterio.io import MemoryFile
         from rasterio.vrt import WarpedVRT
 
-        with rasterio.open(CACHE / f"dem_{key}_10m.tif") as src:
+        # The HUC12 study watershed can extend past the original download
+        # boxes, so fetch a DEM sized to this boundary. Cached after the
+        # first run.
+        bounds = clip_shape.bounds
+        dem_path = fetch_3dep_dem(
+            (bounds[0] - 0.005, bounds[1] - 0.005, bounds[2] + 0.005, bounds[3] + 0.005),
+            1.0 / 3.0,
+            f"dem_{key}_h12_10m",
+        )
+        with rasterio.open(dem_path) as src:
             data, transform = rasterio.mask.mask(
                 src, [clip_shape], crop=True, nodata=-9999.0
             )

@@ -1288,7 +1288,7 @@ async function initialize(): Promise<void> {
         ${capacityChart(facts)}
         <p class="card-note">${escapeHtml(facts.note)}</p>
         <p><a class="card-link" href="${escapeHtml(facts.report_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(facts.report)}</a></p>
-        <p class="card-note">Drainage area shown was delineated from the 3DEP terrain model for this map.</p>
+        <p class="card-note">Drainage area is the HUC12 subwatershed mapped at this dam in the USGS Watershed Boundary Dataset.</p>
       `
       : `<p class="card-note">No published survey figures loaded for this reservoir.</p>`;
     card.classList.remove("is-hidden");
@@ -1369,7 +1369,7 @@ async function initialize(): Promise<void> {
         {
           id: "watersheds",
           label: "Study watersheds",
-          note: "Drainage areas above each dam",
+          note: "HUC12 subwatershed at each dam",
           symbolCss: "background:#1c4d5218;border:2px solid #123c40",
           layers: ["watersheds-fill", "watersheds-outline", "watersheds-labels"],
           checked: true,

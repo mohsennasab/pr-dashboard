@@ -6,7 +6,7 @@ Run them in order from this folder:
 
 ```
 python 01_dem.py                        # 3DEP elevation, island and watersheds
-python 02_watersheds.py                 # delineate drainage areas at each dam
+python 02_watersheds.py                 # HUC12 study watersheds and dam points
 python 03_dem_products.py               # clip watershed DEMs to COGs
 python 04_hydrography.py                # rivers, streams, waterbodies, HUC12
 python 05_gauges.py                     # USGS and GHCN gauges

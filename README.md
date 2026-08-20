@@ -42,6 +42,6 @@ Optimized GeoTIFFs read directly in the browser.
 
 ## Notes
 
-Watershed boundaries were delineated from the USGS 3DEP terrain model and are
-reconnaissance level. Confirm any measurement against the original sources
-before using it in an engineering decision.
+Study watersheds are the HUC12 subwatersheds mapped at each dam in the USGS
+Watershed Boundary Dataset. Confirm any measurement against the original
+sources before using it in an engineering decision.

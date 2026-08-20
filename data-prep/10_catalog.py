@@ -24,11 +24,11 @@ SOURCES = [
         "url": "https://mapterhorn.com/attribution",
     },
     {
-        "layer": "Watershed boundaries",
-        "source": "Delineated from USGS 3DEP",
-        "details": "Drainage area upstream of each dam, delineated with pysheds"
-        " from the 10 m DEM. Reconnaissance level boundaries.",
-        "url": "https://www.usgs.gov/3d-elevation-program",
+        "layer": "Study watersheds",
+        "source": "USGS Watershed Boundary Dataset",
+        "details": "The HUC12 subwatershed mapped at each dam. Its published"
+        " area is the drainage area shown on the reservoir cards.",
+        "url": "https://www.usgs.gov/national-hydrography/watershed-boundary-dataset",
     },
     {
         "layer": "HUC12 boundaries, rivers, waterbodies",
