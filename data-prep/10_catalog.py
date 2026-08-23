@@ -96,11 +96,28 @@ SOURCES = [
         "url": "https://coast.noaa.gov/digitalcoast/data/ccapregional.html",
     },
     {
-        "layer": "Soils",
+        "layer": "Hydrologic soil group and K factor",
+        "source": "gNATSGO on the Microsoft Planetary Computer",
+        "details": "Island wide map unit raster (July 2020, 10 m, served at"
+        " 20 m) joined to SSURGO attributes through Soil Data Access:"
+        " dominant hydrologic group and surface horizon K factor.",
+        "url": "https://planetarycomputer.microsoft.com/dataset/group/gnatsgo",
+    },
+    {
+        "layer": "Soil map units in watersheds",
         "source": "USDA SSURGO through Soil Data Access",
-        "details": "Map units inside the study watersheds with the surface"
-        " horizon K factor of the dominant component.",
+        "details": "Map unit polygons inside the study watersheds with names"
+        " and the surface horizon K factor of the dominant component.",
         "url": "https://sdmdataaccess.sc.egov.usda.gov/",
+    },
+    {
+        "layer": "Geology and faults",
+        "source": "USGS mrdata, Geologic Map of Puerto Rico (OFR 98-38)",
+        "details": "Served by the USGS mrdata WFS with unit name, age, and"
+        " lithology, colored by rock family. The 1:100,000 scale linework"
+        " was shifted about 180 m south and 47 m east after comparison with"
+        " the 3DEP and C-CAP coastlines to register it to the imagery.",
+        "url": "https://mrdata.usgs.gov/geology/pr/",
     },
     {
         "layer": "Roads",

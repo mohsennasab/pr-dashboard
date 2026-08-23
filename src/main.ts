@@ -5,7 +5,7 @@ import maplibregl, {
   type StyleSpecification,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { cogProtocol, setColorFunction } from "@geomatico/maplibre-cog-protocol";
+import { cogProtocol, locationValues, setColorFunction } from "@geomatico/maplibre-cog-protocol";
 import { CrossSectionTool, type RasterExtent } from "./crosssection";
 import "./style.css";
 
@@ -32,8 +32,93 @@ const DEM_ISLAND_URL = "./data/rasters/dem_island_30m.tif";
 const SUSCEPTIBILITY_URL = "./data/rasters/landslide_susceptibility.tif";
 const LANDCOVER_URL = "./data/rasters/landcover_30m.tif";
 
+const SOILS_HSG_URL = "./data/rasters/soils_hsg.tif";
+const SOILS_K_URL = "./data/rasters/soils_kfactor.tif";
+
 const NODATA = 65535;
 const VALUE_SCALE = 0.1;
+
+// Hydrologic soil groups as coded in the soils raster.
+const HSG_CLASSES: Array<{ value: number; label: string; color: string }> = [
+  { value: 1, label: "A, high infiltration", color: "#4a90c2" },
+  { value: 2, label: "B", color: "#6fbf73" },
+  { value: 3, label: "C", color: "#e5c04b" },
+  { value: 4, label: "D, low infiltration", color: "#c8472f" },
+  { value: 5, label: "A/D, drained or not", color: "#9cc0dc" },
+  { value: 6, label: "B/D", color: "#a9d4a3" },
+  { value: 7, label: "C/D", color: "#e8b48a" },
+];
+
+const K_STOPS: Array<[number, [number, number, number]]> = [
+  [0.05, [243, 237, 225]],
+  [0.15, [227, 207, 157]],
+  [0.25, [207, 162, 92]],
+  [0.35, [169, 95, 49]],
+  [0.5, [124, 49, 22]],
+];
+
+// Lithology classes from the geologic map grouped into rock families.
+const LITHOLOGY_FAMILIES: Array<{ label: string; color: string; members: string[] }> = [
+  {
+    label: "Alluvium and unconsolidated deposits",
+    color: "#efe3b8",
+    members: ["Alluvium", "Sand", "Beach sand", "Biogenic material", "Unconsolidated material"],
+  },
+  { label: "Landslide deposits", color: "#b5573a", members: ["Landslide"] },
+  {
+    label: "Limestone and carbonate rocks",
+    color: "#9fc3de",
+    members: ["Limestone", "Mixed carbonate/clastic rock"],
+  },
+  {
+    label: "Clastic sedimentary rocks",
+    color: "#c9b27f",
+    members: [
+      "Sandstone",
+      "Siltstone",
+      "Conglomerate",
+      "Clastic rock",
+      "Medium-grained mixed clastic rock",
+      "Fine-grained mixed clastic rock",
+      "Mixed volcanic/clastic rock",
+      "Chert",
+    ],
+  },
+  {
+    label: "Volcanic rocks",
+    color: "#7fae7e",
+    members: [
+      "Volcanic breccia",
+      "Lava flow",
+      "Basalt",
+      "Tuff",
+      "Trachybasalt",
+      "Andesite",
+      "Dacite",
+      "Volcanic rock",
+      "Welded tuff",
+      "Rhyodacite",
+      "Keratophyre",
+    ],
+  },
+  {
+    label: "Intrusive rocks",
+    color: "#e08aa0",
+    members: [
+      "Quartz diorite",
+      "Granodiorite",
+      "Diorite",
+      "Gabbro",
+      "Quartz monzonite",
+      "Alkali-feldspar syenite",
+    ],
+  },
+  {
+    label: "Metamorphic rocks and serpentinite",
+    color: "#a88bc4",
+    members: ["Metavolcanic rock", "Serpentinite", "Amphibolite", "Tectonic breccia"],
+  },
+];
 
 const RESERVOIRS = [
   { key: "guineo", name: "Lago El Guineo", river: "Rio Toro Negro", municipality: "Villalba / Orocovis" },
@@ -233,6 +318,27 @@ function registerRasterProtocol(): void {
       return;
     }
     const [red, green, blue] = hexToRgb(entry.color);
+    color.set([red, green, blue, 255]);
+  });
+
+  setColorFunction(SOILS_HSG_URL, (pixel, color) => {
+    const raw = Number(pixel[0]);
+    const entry = HSG_CLASSES.find((c) => c.value === raw);
+    if (!entry) {
+      color.set([0, 0, 0, 0]);
+      return;
+    }
+    const [red, green, blue] = hexToRgb(entry.color);
+    color.set([red, green, blue, 255]);
+  });
+
+  setColorFunction(SOILS_K_URL, (pixel, color) => {
+    const raw = Number(pixel[0]);
+    if (!Number.isFinite(raw) || raw === 255 || raw === 0) {
+      color.set([0, 0, 0, 0]);
+      return;
+    }
+    const [red, green, blue] = interpolateColor(raw / 100, K_STOPS);
     color.set([red, green, blue, 255]);
   });
 
@@ -457,6 +563,8 @@ function addRasterOverlays(map: MapLibreMap): void {
       url: SUSCEPTIBILITY_URL,
       opacity: 0.7,
     },
+    { source: "soils-hsg", layer: "soils-hsg-layer", url: SOILS_HSG_URL, opacity: 0.7 },
+    { source: "soils-k", layer: "soils-k-layer", url: SOILS_K_URL, opacity: 0.7 },
   ];
   for (const overlay of overlays) {
     map.addSource(overlay.source, {
@@ -485,7 +593,43 @@ function addVectorLayers(map: MapLibreMap): void {
   const before = firstSymbolLayer(map);
   const hidden = { visibility: "none" as const };
 
-  // Soils sit under everything else.
+  // Geology sits under everything else.
+  map.addSource("geology", { type: "geojson", data: "./data/vectors/geology.geojson" });
+  const lithologyMatch: unknown[] = ["match", ["get", "lith62name"]];
+  for (const family of LITHOLOGY_FAMILIES) {
+    lithologyMatch.push(family.members, family.color);
+  }
+  lithologyMatch.push("#d9d9d9");
+  map.addLayer(
+    {
+      id: "geology-fill",
+      type: "fill",
+      source: "geology",
+      layout: hidden,
+      paint: {
+        "fill-color": lithologyMatch as maplibregl.ExpressionSpecification,
+        "fill-opacity": 0.6,
+        "fill-outline-color": "#7a7a7a",
+      },
+    },
+    before,
+  );
+  map.addSource("faults", { type: "geojson", data: "./data/vectors/geology_faults.geojson" });
+  map.addLayer(
+    {
+      id: "faults-lines",
+      type: "line",
+      source: "faults",
+      layout: hidden,
+      paint: {
+        "line-color": "#1a1a1a",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.8, 13, 2],
+        "line-opacity": 0.9,
+      },
+    },
+    before,
+  );
+
   map.addSource("soils", { type: "geojson", data: "./data/vectors/soils_k.geojson" });
   map.addLayer(
     {
@@ -1161,7 +1305,25 @@ function updateSedimentLegend(states: Record<string, boolean>): void {
           .join(""),
     );
   }
-  if (states.soils) {
+  if (states.hsg) {
+    blocks.push(
+      `<span class="legend-item"><strong>Hydrologic soil group</strong></span>` +
+        HSG_CLASSES.map(
+          (entry) =>
+            `<span class="legend-item"><span class="legend-swatch" style="background:${entry.color}"></span>${entry.label}</span>`,
+        ).join(""),
+    );
+  }
+  if (states.geology) {
+    blocks.push(
+      `<span class="legend-item"><strong>Geology</strong></span>` +
+        LITHOLOGY_FAMILIES.map(
+          (family) =>
+            `<span class="legend-item"><span class="legend-swatch" style="background:${family.color}"></span>${family.label}</span>`,
+        ).join(""),
+    );
+  }
+  if (states.soils || states.kfactor) {
     blocks.push(
       `<span class="legend-item"><strong>Soil K factor</strong></span>` +
         `<span class="legend-item"><span class="legend-swatch" style="background:#f3ede1"></span>0.05</span>` +
@@ -1209,6 +1371,8 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
     "streams-lines",
     "soils-fill",
     "roads-watersheds-lines",
+    "geology-fill",
+    "faults-lines",
     "transfers-tunnels-lines",
     "transfers-pipelines-lines",
     "transfers-canals-lines",
@@ -1285,6 +1449,74 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
        <div class="popup-row"><span>K factor</span><span>${escapeHtml(properties.kfactor ?? "not rated")}</span></div>`,
     );
   });
+  map.on("click", "geology-fill", (event) => {
+    const properties = event.features?.[0]?.properties;
+    if (!properties) {
+      return;
+    }
+    const family = LITHOLOGY_FAMILIES.find((entry) =>
+      entry.members.includes(String(properties.lith62name)),
+    );
+    popup(
+      map,
+      event,
+      `<div class="popup-title">${escapeHtml(properties.name ?? "Geologic unit")}</div>
+       <div class="popup-sub">${escapeHtml(properties.age ?? "")}</div>
+       <div class="popup-row"><span>Lithology</span><span>${escapeHtml(properties.lith62name ?? "")}</span></div>
+       <div class="popup-row"><span>Family</span><span>${escapeHtml(family?.label ?? "Other")}</span></div>
+       <div class="popup-row"><span>Unit</span><span>${escapeHtml(properties.fmatn ?? "")}</span></div>
+       <div class="popup-row"><a href="${escapeHtml(properties.url ?? "#")}" target="_blank" rel="noopener noreferrer">USGS unit description</a></div>`,
+    );
+  });
+  map.on("click", "faults-lines", (event) => {
+    const properties = event.features?.[0]?.properties;
+    popup(
+      map,
+      event,
+      `<div class="popup-title">Fault</div>
+       <div class="popup-sub">USGS OFR 98-38, line type ${escapeHtml(properties?.lntype ?? "")}</div>`,
+    );
+  });
+
+  // Raster readouts for the soil layers when no vector feature was hit.
+  map.on("click", (event) => {
+    // Watershed and reservoir fills open the card, but soil readouts should
+    // still work inside them, so they are left out of this test.
+    const blocking = hoverable.filter(
+      (id) => map.getLayer(id) && id !== "watersheds-fill" && id !== "reservoirs-fill",
+    );
+    const hit = map.queryRenderedFeatures(event.point, { layers: blocking });
+    if (hit.length > 0) {
+      return;
+    }
+    const hsgOn = map.getLayoutProperty("soils-hsg-layer", "visibility") === "visible";
+    const kOn = map.getLayoutProperty("soils-k-layer", "visibility") === "visible";
+    if (!hsgOn && !kOn) {
+      return;
+    }
+    const where = { latitude: event.lngLat.lat, longitude: event.lngLat.lng };
+    void Promise.all([
+      hsgOn ? locationValues(SOILS_HSG_URL, where) : Promise.resolve(null),
+      kOn ? locationValues(SOILS_K_URL, where) : Promise.resolve(null),
+    ]).then(([hsgValues, kValues]) => {
+      const rows: string[] = [];
+      if (hsgValues) {
+        const entry = HSG_CLASSES.find((c) => c.value === Number(hsgValues[0]));
+        rows.push(
+          `<div class="popup-row"><span>Hydrologic group</span><span>${escapeHtml(entry?.label ?? "Not rated")}</span></div>`,
+        );
+      }
+      if (kValues) {
+        const raw = Number(kValues[0]);
+        const text = Number.isFinite(raw) && raw !== 255 && raw !== 0 ? (raw / 100).toFixed(2) : "Not rated";
+        rows.push(`<div class="popup-row"><span>K factor</span><span>${text}</span></div>`);
+      }
+      if (rows.length > 0) {
+        popup(map, event as MapLayerMouseEvent, `<div class="popup-title">Soils at this point</div>${rows.join("")}`);
+      }
+    });
+  });
+
   map.on("click", "roads-watersheds-lines", (event) => {
     const properties = event.features?.[0]?.properties;
     if (!properties) {
@@ -1679,13 +1911,48 @@ async function initialize(): Promise<void> {
           onToggle: sedimentToggle("landcover"),
         },
         {
-          id: "soils",
-          label: "Soil erodibility",
-          note: "SSURGO K factor in the watersheds",
+          id: "soils-hsg",
+          label: "Hydrologic soil group",
+          note: "gNATSGO, island wide, click for the group",
+          symbolCss: "background:linear-gradient(90deg,#4a90c2,#6fbf73,#e5c04b,#c8472f)",
+          layers: ["soils-hsg-layer"],
+          checked: false,
+          onToggle: sedimentToggle("hsg"),
+        },
+        {
+          id: "soils-k",
+          label: "Soil erodibility, K factor",
+          note: "gNATSGO, island wide, click for the value",
           symbolCss: "background:linear-gradient(90deg,#f3ede1,#7c3116)",
+          layers: ["soils-k-layer"],
+          checked: false,
+          onToggle: sedimentToggle("kfactor"),
+        },
+        {
+          id: "soils",
+          label: "Soil map units in watersheds",
+          note: "SSURGO polygons with names and K factor",
+          symbolCss: "background:#e3cf9d;border:1px solid #9a8a70",
           layers: ["soils-fill"],
           checked: false,
           onToggle: sedimentToggle("soils"),
+        },
+        {
+          id: "geology",
+          label: "Geology",
+          note: "USGS geologic map, colored by rock family",
+          symbolCss: "background:linear-gradient(90deg,#efe3b8,#9fc3de,#7fae7e,#e08aa0)",
+          layers: ["geology-fill"],
+          checked: false,
+          onToggle: sedimentToggle("geology"),
+        },
+        {
+          id: "faults",
+          label: "Faults",
+          note: "Mapped fault lines",
+          symbolCss: "background:#1a1a1a;height:3px",
+          layers: ["faults-lines"],
+          checked: false,
         },
       ]);
 

@@ -19,7 +19,8 @@ details.
 - Draw a cross section anywhere and download the elevation profile as CSV
 - See the tunnels, canals, pipelines, dams, and intakes that move water
   between basins, each as its own layer
-- Explore landslides, landslide susceptibility, land cover, soils, and roads
+- Explore landslides, landslide susceptibility, land cover, hydrologic soil
+  groups, soil erodibility, geology, faults, and roads
 
 ## Data
 

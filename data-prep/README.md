@@ -16,6 +16,7 @@ python 08_soils.py                      # SSURGO K factor
 python 09_reservoir_info.py             # USGS sedimentation survey figures
 python 10_catalog.py                    # data catalog page
 python 11_water_transfers.py            # tunnels, pipelines, canals, dams
+python 12_geology_soils.py              # geology, faults, gNATSGO soils
 ```
 
 Requirements: Python 3.11 or newer with `geopandas`, `rasterio`, `pyogrio`,
