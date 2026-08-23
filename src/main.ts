@@ -852,6 +852,112 @@ function addStormLayers(map: MapLibreMap): void {
   });
 }
 
+function addTransferLayers(map: MapLibreMap): void {
+  const before = firstSymbolLayer(map);
+  const hidden = { visibility: "none" as const };
+  for (const file of ["tunnels", "pipelines", "canals", "structures", "gauges"]) {
+    map.addSource(`transfers-${file}`, {
+      type: "geojson",
+      data: `./data/vectors/transfers_${file}.geojson`,
+    });
+  }
+  map.addLayer(
+    {
+      id: "transfers-canals-fill",
+      type: "fill",
+      source: "transfers-canals",
+      filter: ["==", ["geometry-type"], "Polygon"],
+      layout: hidden,
+      paint: { "fill-color": "#0f8a8a", "fill-opacity": 0.35 },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: "transfers-canals-lines",
+      type: "line",
+      source: "transfers-canals",
+      filter: ["==", ["geometry-type"], "LineString"],
+      layout: hidden,
+      paint: {
+        "line-color": "#0f8a8a",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.2, 14, 2.6],
+        "line-opacity": 0.9,
+      },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: "transfers-pipelines-lines",
+      type: "line",
+      source: "transfers-pipelines",
+      layout: hidden,
+      paint: {
+        "line-color": "#9b59b6",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.6, 14, 3],
+        "line-opacity": 0.95,
+      },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: "transfers-tunnels-lines",
+      type: "line",
+      source: "transfers-tunnels",
+      layout: { ...hidden, "line-cap": "round" },
+      paint: {
+        "line-color": "#5b2d8e",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.4, 14, 4.5],
+        "line-dasharray": [2, 1.4],
+        "line-opacity": 0.95,
+      },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: "transfers-structures-fill",
+      type: "fill",
+      source: "transfers-structures",
+      filter: ["==", ["geometry-type"], "Polygon"],
+      layout: hidden,
+      paint: {
+        "fill-color": ["case", ["==", ["get", "fcode"], 48500], "#c2185b", "#333333"],
+        "fill-opacity": 0.6,
+      },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: "transfers-structures-lines",
+      type: "line",
+      source: "transfers-structures",
+      filter: ["==", ["geometry-type"], "LineString"],
+      layout: hidden,
+      paint: { "line-color": "#1a1a1a", "line-width": 3.5 },
+    },
+    before,
+  );
+  map.addLayer(
+    {
+      id: "transfers-gauges-points",
+      type: "circle",
+      source: "transfers-gauges",
+      layout: hidden,
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 4.5, 13, 8],
+        "circle-color": ["case", ["get", "active"], "#c2185b", "#d9a0b8"],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.5,
+      },
+    },
+    before,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Storm controls
 // ---------------------------------------------------------------------------
@@ -1061,6 +1167,13 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
     "streams-lines",
     "soils-fill",
     "roads-watersheds-lines",
+    "transfers-tunnels-lines",
+    "transfers-pipelines-lines",
+    "transfers-canals-lines",
+    "transfers-canals-fill",
+    "transfers-structures-lines",
+    "transfers-structures-fill",
+    "transfers-gauges-points",
     "watersheds-fill",
     "reservoirs-fill",
     "dams-points",
@@ -1141,6 +1254,39 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
       event,
       `<div class="popup-title">${escapeHtml(properties.name || "Unnamed road")}</div>`,
     );
+  });
+
+  const transferHtml = (properties: Record<string, unknown>): string => {
+    const length = properties.length_mi
+      ? `<div class="popup-row"><span>Length</span><span>${Number(properties.length_mi).toFixed(2)} mi</span></div>`
+      : "";
+    return `
+      <div class="popup-title">${escapeHtml(properties.label ?? "Conveyance feature")}</div>
+      <div class="popup-sub">${escapeHtml(properties.name || "Unnamed")}</div>
+      ${length}
+      <div class="popup-row"><span>NHD code</span><span>${escapeHtml(properties.fcode ?? "")}</span></div>
+      <div class="popup-row"><span>Source</span><span>${escapeHtml(properties.source ?? "")}</span></div>`;
+  };
+  for (const layerId of [
+    "transfers-tunnels-lines",
+    "transfers-pipelines-lines",
+    "transfers-canals-lines",
+    "transfers-canals-fill",
+    "transfers-structures-lines",
+    "transfers-structures-fill",
+  ]) {
+    map.on("click", layerId, (event) => {
+      const properties = event.features?.[0]?.properties;
+      if (properties) {
+        popup(map, event, transferHtml(properties));
+      }
+    });
+  }
+  map.on("click", "transfers-gauges-points", (event) => {
+    const properties = event.features?.[0]?.properties;
+    if (properties) {
+      popup(map, event, gaugeHtml(properties, "Transfer gauge"));
+    }
   });
 
   const reservoirClick = (event: MapLayerMouseEvent): void => {
@@ -1351,6 +1497,7 @@ async function initialize(): Promise<void> {
       addRasterOverlays(map);
       addVectorLayers(map);
       addStormLayers(map);
+      addTransferLayers(map);
       crossSection.ensureLayers();
 
       const sedimentStates: Record<string, boolean> = {};
@@ -1423,6 +1570,50 @@ async function initialize(): Promise<void> {
           note: "USGS and NOAA GHCN, light blue when active",
           symbolCss: "background:#6db4e3;border-radius:50%",
           layers: ["gauges-rain-points"],
+          checked: false,
+        },
+      ]);
+
+      renderLayerGroup(map, "transfer-layers", [
+        {
+          id: "transfers-tunnels",
+          label: "Tunnels",
+          note: "NHD tunnels and underground aqueducts",
+          symbolCss:
+            "background:repeating-linear-gradient(90deg,#5b2d8e 0 4px,transparent 4px 7px);height:5px;border-radius:2px",
+          layers: ["transfers-tunnels-lines"],
+          checked: false,
+        },
+        {
+          id: "transfers-pipelines",
+          label: "Pipelines and siphons",
+          note: "Surface and elevated conveyances",
+          symbolCss: "background:#9b59b6;height:5px;border-radius:2px",
+          layers: ["transfers-pipelines-lines"],
+          checked: false,
+        },
+        {
+          id: "transfers-canals",
+          label: "Canals and ditches",
+          note: "Irrigation and diversion channels",
+          symbolCss: "background:#0f8a8a;height:5px;border-radius:2px",
+          layers: ["transfers-canals-lines", "transfers-canals-fill"],
+          checked: false,
+        },
+        {
+          id: "transfers-structures",
+          label: "Dams and intakes",
+          note: "Dam, weir, intake, and outflow footprints",
+          symbolCss: "background:#333333",
+          layers: ["transfers-structures-lines", "transfers-structures-fill"],
+          checked: false,
+        },
+        {
+          id: "transfers-gauges",
+          label: "Transfer gauges",
+          note: "USGS gauges on canals, diversions, and reservoir inflows",
+          symbolCss: "background:#c2185b;border-radius:50%",
+          layers: ["transfers-gauges-points"],
           checked: false,
         },
       ]);

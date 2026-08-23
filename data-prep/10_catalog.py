@@ -38,6 +38,14 @@ SOURCES = [
         "url": "https://www.usgs.gov/national-hydrography/nhdplus-high-resolution",
     },
     {
+        "layer": "Water transfers",
+        "source": "USGS NHDPlus High Resolution",
+        "details": "Tunnels, underground aqueducts, pipelines, siphons, canals,"
+        " dams, and water intakes from the NHDPlus HR feature layers, plus"
+        " the NWIS gauges that measure canals and diversions.",
+        "url": "https://www.usgs.gov/national-hydrography/nhdplus-high-resolution",
+    },
+    {
         "layer": "Reservoir storage figures",
         "source": "USGS sedimentation survey reports",
         "details": "Original and surveyed capacities from the published USGS"
