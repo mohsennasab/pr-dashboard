@@ -620,46 +620,28 @@ function addVectorLayers(map: MapLibreMap): void {
       id: "faults-lines",
       type: "line",
       source: "faults",
+      filter: ["!=", ["get", "kind"], "Concealed thrust fault"],
       layout: hidden,
       paint: {
-        "line-color": "#1a1a1a",
-        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.8, 13, 2],
+        "line-color": ["case", ["==", ["get", "kind"], "Normal fault"], "#8a1f1f", "#1a1a1a"],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.9, 13, 2.2],
         "line-opacity": 0.9,
       },
     },
     before,
   );
-
-  map.addSource("soils", { type: "geojson", data: "./data/vectors/soils_k.geojson" });
   map.addLayer(
     {
-      id: "soils-fill",
-      type: "fill",
-      source: "soils",
+      id: "faults-concealed",
+      type: "line",
+      source: "faults",
+      filter: ["==", ["get", "kind"], "Concealed thrust fault"],
       layout: hidden,
       paint: {
-        "fill-color": [
-          "case",
-          ["!", ["to-boolean", ["get", "kfactor"]]],
-          "#d7d7d3",
-          [
-            "interpolate",
-            ["linear"],
-            ["to-number", ["get", "kfactor"]],
-            0.05,
-            "#f3ede1",
-            0.15,
-            "#e3cf9d",
-            0.25,
-            "#cfa25c",
-            0.35,
-            "#a95f31",
-            0.5,
-            "#7c3116",
-          ],
-        ],
-        "fill-opacity": 0.72,
-        "fill-outline-color": "#9a8a70",
+        "line-color": "#1a1a1a",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.9, 13, 2.2],
+        "line-dasharray": [3, 2],
+        "line-opacity": 0.85,
       },
     },
     before,
@@ -1323,7 +1305,7 @@ function updateSedimentLegend(states: Record<string, boolean>): void {
         ).join(""),
     );
   }
-  if (states.soils || states.kfactor) {
+  if (states.kfactor) {
     blocks.push(
       `<span class="legend-item"><strong>Soil K factor</strong></span>` +
         `<span class="legend-item"><span class="legend-swatch" style="background:#f3ede1"></span>0.05</span>` +
@@ -1356,7 +1338,7 @@ function gaugeHtml(properties: Record<string, unknown>, kind: string): string {
   return `
     <div class="popup-title">${escapeHtml(properties.station)}${badge}</div>
     <div class="popup-sub">${escapeHtml(kind)} · ${escapeHtml(properties.network)}</div>
-    <div class="popup-row"><span>Station</span><span>${escapeHtml(properties.site_no)}</span></div>
+    <div class="popup-row"><span>Station ID</span><span><code>${escapeHtml(properties.site_no)}</code></span></div>
     <div class="popup-row"><span>Record</span><span>${escapeHtml(properties.begin)} to ${escapeHtml(properties.end)}</span></div>
     ${drain}
     <div class="popup-row"><a href="${escapeHtml(properties.url)}" target="_blank" rel="noopener noreferrer">Open the station page</a></div>
@@ -1369,10 +1351,10 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
     "gauges-rain-points",
     "rivers-lines",
     "streams-lines",
-    "soils-fill",
     "roads-watersheds-lines",
     "geology-fill",
     "faults-lines",
+    "faults-concealed",
     "transfers-tunnels-lines",
     "transfers-pipelines-lines",
     "transfers-canals-lines",
@@ -1436,19 +1418,6 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
        ${slope}`,
     );
   });
-  map.on("click", "soils-fill", (event) => {
-    const properties = event.features?.[0]?.properties;
-    if (!properties) {
-      return;
-    }
-    popup(
-      map,
-      event,
-      `<div class="popup-title">${escapeHtml(properties.muname ?? "Soil map unit")}</div>
-       <div class="popup-row"><span>Map unit</span><span>${escapeHtml(properties.musym ?? "")}</span></div>
-       <div class="popup-row"><span>K factor</span><span>${escapeHtml(properties.kfactor ?? "not rated")}</span></div>`,
-    );
-  });
   map.on("click", "geology-fill", (event) => {
     const properties = event.features?.[0]?.properties;
     if (!properties) {
@@ -1468,15 +1437,17 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
        <div class="popup-row"><a href="${escapeHtml(properties.url ?? "#")}" target="_blank" rel="noopener noreferrer">USGS unit description</a></div>`,
     );
   });
-  map.on("click", "faults-lines", (event) => {
-    const properties = event.features?.[0]?.properties;
-    popup(
-      map,
-      event,
-      `<div class="popup-title">Fault</div>
-       <div class="popup-sub">USGS OFR 98-38, line type ${escapeHtml(properties?.lntype ?? "")}</div>`,
-    );
-  });
+  for (const layerId of ["faults-lines", "faults-concealed"]) {
+    map.on("click", layerId, (event) => {
+      const properties = event.features?.[0]?.properties;
+      popup(
+        map,
+        event,
+        `<div class="popup-title">${escapeHtml(properties?.kind ?? "Fault")}</div>
+         <div class="popup-sub">USGS OFR 98-38 geologic map. The map does not name individual faults.</div>`,
+      );
+    });
+  }
 
   // Raster readouts for the soil layers when no vector feature was hit.
   map.on("click", (event) => {
@@ -1783,6 +1754,15 @@ async function initialize(): Promise<void> {
         if (name === "landcover") {
           element("landcover-opacity-wrap").classList.toggle("is-hidden", !visible);
         }
+        if (name === "hsg") {
+          element("hsg-opacity-wrap").classList.toggle("is-hidden", !visible);
+        }
+        if (name === "kfactor") {
+          element("kfactor-opacity-wrap").classList.toggle("is-hidden", !visible);
+        }
+        if (name === "geology") {
+          element("geology-opacity-wrap").classList.toggle("is-hidden", !visible);
+        }
       };
 
       renderLayerGroup(map, "water-context-layers", [
@@ -1929,15 +1909,6 @@ async function initialize(): Promise<void> {
           onToggle: sedimentToggle("kfactor"),
         },
         {
-          id: "soils",
-          label: "Soil map units in watersheds",
-          note: "SSURGO polygons with names and K factor",
-          symbolCss: "background:#e3cf9d;border:1px solid #9a8a70",
-          layers: ["soils-fill"],
-          checked: false,
-          onToggle: sedimentToggle("soils"),
-        },
-        {
           id: "geology",
           label: "Geology",
           note: "USGS geologic map, colored by rock family",
@@ -1949,9 +1920,9 @@ async function initialize(): Promise<void> {
         {
           id: "faults",
           label: "Faults",
-          note: "Mapped fault lines",
+          note: "Thrust faults black, concealed dashed, normal faults dark red",
           symbolCss: "background:#1a1a1a;height:3px",
-          layers: ["faults-lines"],
+          layers: ["faults-lines", "faults-concealed"],
           checked: false,
         },
       ]);
@@ -2006,16 +1977,72 @@ async function initialize(): Promise<void> {
         element<HTMLOutputElement>("elevation-opacity-value").value =
           `${elevationOpacity.value}%`;
       });
-      for (const [inputId, layerId] of [
-        ["susceptibility-opacity", "susceptibility-layer"],
-        ["landcover-opacity", "landcover-layer"],
+      for (const [inputId, layerId, property] of [
+        ["susceptibility-opacity", "susceptibility-layer", "raster-opacity"],
+        ["landcover-opacity", "landcover-layer", "raster-opacity"],
+        ["hsg-opacity", "soils-hsg-layer", "raster-opacity"],
+        ["kfactor-opacity", "soils-k-layer", "raster-opacity"],
+        ["geology-opacity", "geology-fill", "fill-opacity"],
       ] as const) {
         const input = element<HTMLInputElement>(inputId);
         input.addEventListener("input", () => {
-          map.setPaintProperty(layerId, "raster-opacity", Number(input.value) / 100);
+          map.setPaintProperty(layerId, property, Number(input.value) / 100);
           element<HTMLOutputElement>(`${inputId}-value`).value = `${input.value}%`;
         });
       }
+
+      // USGS gauge finder: by station ID or name, flies to the gauge and
+      // opens its popup so the ID and station link are one step away.
+      void fetchJson<GeoJSON.FeatureCollection>("./data/vectors/gauges_streamflow.geojson").then(
+        (gauges) => {
+          const search = element<HTMLInputElement>("gauge-search");
+          const list = element<HTMLDataListElement>("gauge-list");
+          const hint = element<HTMLElement>("gauge-search-hint");
+          const entries = gauges.features.map((feature) => ({
+            properties: feature.properties as Record<string, unknown>,
+            coordinates: (feature.geometry as GeoJSON.Point).coordinates as [number, number],
+          }));
+          entries.sort((a, b) => String(a.properties.site_no).localeCompare(String(b.properties.site_no)));
+          for (const entry of entries) {
+            const option = document.createElement("option");
+            option.value = `${entry.properties.site_no} ${entry.properties.station}`;
+            list.append(option);
+          }
+          search.addEventListener("change", () => {
+            const text = search.value.trim().toLowerCase();
+            if (!text) {
+              hint.classList.add("is-hidden");
+              return;
+            }
+            const found =
+              entries.find((entry) => String(entry.properties.site_no) === text) ??
+              entries.find((entry) =>
+                `${entry.properties.site_no} ${entry.properties.station}`.toLowerCase() === text,
+              ) ??
+              entries.find((entry) => String(entry.properties.site_no).startsWith(text)) ??
+              entries.find((entry) => String(entry.properties.station).toLowerCase().includes(text));
+            if (!found) {
+              hint.textContent = "No USGS streamflow gauge matches that ID or name.";
+              hint.classList.remove("is-hidden");
+              return;
+            }
+            hint.classList.add("is-hidden");
+            const checkbox = element<HTMLInputElement>("layer-gauges-flow");
+            if (!checkbox.checked) {
+              checkbox.checked = true;
+              setLayerVisibility(map, ["gauges-flow-points"], true);
+            }
+            search.value = `${found.properties.site_no} ${found.properties.station}`;
+            map.flyTo({ center: found.coordinates, zoom: 13, duration: 1200 });
+            map.once("moveend", () => {
+              new maplibregl.Popup({ closeButton: true, maxWidth: "300px" })
+                .setLngLat(found.coordinates)
+                .setHTML(`<div class="feature-popup">${gaugeHtml(found.properties, "Streamflow gauge")}</div>`)
+                .addTo(map);
+            });
+          });
+        },
+      );
 
       element("about-button").addEventListener("click", () =>
         element<HTMLDialogElement>("about-dialog").showModal(),

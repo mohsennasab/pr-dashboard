@@ -95,11 +95,16 @@ def geology() -> None:
     print("  lithology classes:", units["lith62name"].value_counts().to_dict())
     print("  ages:", units["age"].value_counts().head(12).to_dict())
 
-    faults = fetch_wfs("fault")
-    print(f"  {len(faults)} fault lines, columns {list(faults.columns)}")
-    keep = [c for c in ("lntype", "name", "descript") if c in faults.columns]
-    faults = faults[keep + ["geometry"]].copy()
+    # Two fault layers. Line type codes come from the OFR 98-38 metadata.
+    thrust = fetch_wfs("fault")
+    thrust["kind"] = thrust["lntype"].map({"7": "Thrust fault", "27": "Concealed thrust fault"})
+    normal = fetch_wfs("faultn")
+    normal["kind"] = normal["lntype"].map({"25": "Normal fault", "0": "Fault, type not recorded"})
+    faults = pd.concat([thrust, normal], ignore_index=True)
+    faults["kind"] = faults["kind"].fillna("Fault")
+    faults = gpd.GeoDataFrame(faults[["lntype", "kind", "geometry"]], crs="EPSG:4326")
     faults["geometry"] = faults.geometry.simplify(0.00015, preserve_topology=True)
+    print(f"  {len(faults)} fault lines: {faults['kind'].value_counts().to_dict()}")
     write_geojson(faults, VECTORS / "geology_faults.geojson", precision=5)
 
 

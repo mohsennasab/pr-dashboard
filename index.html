@@ -87,6 +87,11 @@
               <h2 id="water-heading">Rivers and gauges</h2>
             </div>
             <div id="water-layers" class="layer-list"></div>
+            <div class="storm-search">
+              <input id="gauge-search" type="text" list="gauge-list" placeholder="Find a USGS gauge by ID or name" aria-label="Find a USGS streamflow gauge by station ID or name" />
+              <datalist id="gauge-list"></datalist>
+            </div>
+            <p class="tool-hint is-hidden" id="gauge-search-hint"></p>
           </section>
 
           <section class="control-section" aria-labelledby="transfers-heading">
@@ -158,6 +163,21 @@
               <label for="landcover-opacity">Opacity</label>
               <input id="landcover-opacity" type="range" min="10" max="100" value="70" />
               <output id="landcover-opacity-value" for="landcover-opacity">70%</output>
+            </div>
+            <div id="hsg-opacity-wrap" class="opacity-row is-hidden">
+              <label for="hsg-opacity">Soil group opacity</label>
+              <input id="hsg-opacity" type="range" min="10" max="100" value="70" />
+              <output id="hsg-opacity-value" for="hsg-opacity">70%</output>
+            </div>
+            <div id="kfactor-opacity-wrap" class="opacity-row is-hidden">
+              <label for="kfactor-opacity">K factor opacity</label>
+              <input id="kfactor-opacity" type="range" min="10" max="100" value="70" />
+              <output id="kfactor-opacity-value" for="kfactor-opacity">70%</output>
+            </div>
+            <div id="geology-opacity-wrap" class="opacity-row is-hidden">
+              <label for="geology-opacity">Geology opacity</label>
+              <input id="geology-opacity" type="range" min="10" max="100" value="60" />
+              <output id="geology-opacity-value" for="geology-opacity">60%</output>
             </div>
             <div id="sediment-legend" class="category-legend"></div>
           </section>

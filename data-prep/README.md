@@ -12,7 +12,6 @@ python 04_hydrography.py                # rivers, streams, waterbodies, HUC12
 python 05_gauges.py                     # USGS and GHCN gauges
 python 06_ibtracs.py                    # hurricane tracks since 1980
 python 07_landslides_landcover_roads.py # landslides, C-CAP, TIGER roads
-python 08_soils.py                      # SSURGO K factor
 python 09_reservoir_info.py             # USGS sedimentation survey figures
 python 10_catalog.py                    # data catalog page
 python 11_water_transfers.py            # tunnels, pipelines, canals, dams

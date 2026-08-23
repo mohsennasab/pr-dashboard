@@ -14,7 +14,7 @@ details.
 - Read the published USGS storage and sedimentation figures for each reservoir
 - Turn on hurricane tracks since 1980 and search for a single storm by name
 - Check stream and rain gauges, active and discontinued, with links to the
-  agency station pages
+  agency station pages, and find any USGS gauge by station ID or name
 - View terrain as hillshade, an elevation color ramp, or a full 3D scene
 - Draw a cross section anywhere and download the elevation profile as CSV
 - See the tunnels, canals, pipelines, dams, and intakes that move water

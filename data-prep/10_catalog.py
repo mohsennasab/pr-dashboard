@@ -104,13 +104,6 @@ SOURCES = [
         "url": "https://planetarycomputer.microsoft.com/dataset/group/gnatsgo",
     },
     {
-        "layer": "Soil map units in watersheds",
-        "source": "USDA SSURGO through Soil Data Access",
-        "details": "Map unit polygons inside the study watersheds with names"
-        " and the surface horizon K factor of the dominant component.",
-        "url": "https://sdmdataaccess.sc.egov.usda.gov/",
-    },
-    {
         "layer": "Geology and faults",
         "source": "USGS mrdata, Geologic Map of Puerto Rico (OFR 98-38)",
         "details": "Served by the USGS mrdata WFS with unit name, age, and"
