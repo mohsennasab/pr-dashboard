@@ -41,8 +41,9 @@ SOURCES = [
         "layer": "Water transfers",
         "source": "USGS NHDPlus High Resolution",
         "details": "Tunnels, underground aqueducts, pipelines, siphons, canals,"
-        " dams, and water intakes from the NHDPlus HR feature layers, plus"
-        " the NWIS gauges that measure canals and diversions.",
+        " dams, and water intakes from the NHDPlus HR feature layers. Flow"
+        " arrows are solid where NHD records the direction and faded where"
+        " it was inferred downhill from the ground elevation at the ends.",
         "url": "https://www.usgs.gov/national-hydrography/nhdplus-high-resolution",
     },
     {

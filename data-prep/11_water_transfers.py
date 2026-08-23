@@ -14,15 +14,24 @@ Outputs
   public/data/vectors/transfers_structures.geojson  dam and weir lines and
                                                     polygons, water intake and
                                                     outflow polygons
-  public/data/vectors/transfers_gauges.geojson      NWIS gauges that measure
-                                                    canals, diversions, and
-                                                    reservoir inflow or outflow
+
+Flow direction comes from NHD where the flowdir flag is "with digitized".
+For the rest, these are gravity systems, so direction is inferred from the
+ground elevation at the two ends of each line (high end to low end) using
+the one arc second DEM. Each feature carries direction = recorded,
+inferred, or unknown, and the map draws arrows for the first two.
 """
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
+import rasterio
+import shapely
+from shapely.geometry import LineString, MultiLineString
 
 from common import CACHE, VECTORS, http_get, write_geojson
+
+MIN_DROP_M = 3.0
 
 SERVICE = "https://hydro.nationalmap.gov/arcgis/rest/services/NHDPlus_HR/MapServer"
 
@@ -55,12 +64,6 @@ UNDERGROUND = {42803, 42804, 42807, 42808, 42811, 42812, 47800}
 SURFACE_PIPES = {42800, 42801, 42802, 42805, 42806, 42809, 42810, 42813}
 CANALS = {33600, 33601}
 STRUCTURES = {34305, 34306, 48500}
-
-GAUGE_PATTERN = (
-    r"CANAL|TUNEL|TUNNEL|DIVERS|DESV|DAMSITE|ABV LAGO|BLW LAGO|AT LAGO|"
-    r"PLANT|INTAKE|FOREBAY|PENSTOCK|ACUEDUCTO|AQUEDUCT"
-)
-
 
 def search_box():
     sheds = gpd.read_file(CACHE / "watersheds_raw.gpkg", layer="watersheds")
@@ -101,7 +104,7 @@ def query(layer: int, where: str, bbox, fields: str) -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs="EPSG:4326")
 
 
-def tidy(frame: gpd.GeoDataFrame, source: str) -> gpd.GeoDataFrame:
+def tidy(frame: gpd.GeoDataFrame, source: str, directed_ok: bool = False) -> gpd.GeoDataFrame:
     frame = frame.copy()
     frame["fcode"] = pd.to_numeric(frame["fcode"], errors="coerce").astype("Int64")
     frame["label"] = frame["fcode"].map(LABELS).fillna("Other")
@@ -111,7 +114,48 @@ def tidy(frame: gpd.GeoDataFrame, source: str) -> gpd.GeoDataFrame:
         frame["length_mi"] = (pd.to_numeric(frame["lengthkm"], errors="coerce") * 0.621371).round(2)
     else:
         frame["length_mi"] = None
-    return frame[["fcode", "label", "name", "source", "length_mi", "geometry"]]
+    # NHD flowdir 1 means flow follows the digitized direction of the line.
+    if directed_ok and "flowdir" in frame.columns:
+        frame["directed"] = pd.to_numeric(frame["flowdir"], errors="coerce").eq(1)
+    else:
+        frame["directed"] = False
+    return frame[["fcode", "label", "name", "source", "length_mi", "directed", "geometry"]]
+
+
+def end_points(geom):
+    if isinstance(geom, LineString):
+        coords = list(geom.coords)
+    elif isinstance(geom, MultiLineString):
+        coords = list(geom.geoms[0].coords)[:1] + list(geom.geoms[-1].coords)[-1:]
+    else:
+        return None
+    return coords[0], coords[-1]
+
+
+def infer_direction(frame: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Point every undirected line downhill and record how direction was set."""
+    frame = frame.copy()
+    frame["direction"] = np.where(frame["directed"], "recorded", "unknown")
+    undirected = frame.index[~frame["directed"]]
+    if len(undirected) == 0:
+        return frame
+    with rasterio.open(CACHE / "dem_island_30m.tif") as dem:
+        for index in undirected:
+            ends = end_points(frame.at[index, "geometry"])
+            if ends is None:
+                continue
+            samples = list(dem.sample([ends[0], ends[1]]))
+            start_z, end_z = float(samples[0][0]), float(samples[1][0])
+            if not np.isfinite(start_z) or not np.isfinite(end_z):
+                continue
+            drop = start_z - end_z
+            if abs(drop) < MIN_DROP_M:
+                continue
+            if drop < 0:
+                frame.at[index, "geometry"] = shapely.reverse(frame.at[index, "geometry"])
+            frame.at[index, "direction"] = "inferred"
+    frame["directed"] = frame["direction"] != "unknown"
+    return frame
 
 
 def main() -> None:
@@ -120,8 +164,16 @@ def main() -> None:
 
     codes = sorted(UNDERGROUND | SURFACE_PIPES | CANALS)
     where = "fcode IN (" + ",".join(str(c) for c in codes) + ")"
-    network = tidy(query(3, where, bbox, "fcode,gnis_name,lengthkm"), "NHDPlus HR network flowline")
-    nonnetwork = tidy(query(4, where, bbox, "fcode,gnis_name,lengthkm"), "NHDPlus HR non network flowline")
+    network = tidy(
+        query(3, where, bbox, "fcode,gnis_name,lengthkm,flowdir"),
+        "NHDPlus HR network flowline",
+        directed_ok=True,
+    )
+    nonnetwork = tidy(
+        query(4, where, bbox, "fcode,gnis_name,lengthkm,flowdir"),
+        "NHDPlus HR non network flowline",
+        directed_ok=True,
+    )
     flowlines = gpd.GeoDataFrame(pd.concat([network, nonnetwork], ignore_index=True), crs="EPSG:4326")
 
     lines = tidy(
@@ -152,16 +204,13 @@ def main() -> None:
         ("transfers_structures", structures),
     ):
         frame = gpd.GeoDataFrame(frame, crs="EPSG:4326")
+        if name != "transfers_structures":
+            frame = infer_direction(frame)
+        else:
+            frame["direction"] = "unknown"
         summary = frame.groupby("label").size().to_dict()
-        print(f"{name}: {summary}")
+        print(f"{name}: {summary}, direction {frame['direction'].value_counts().to_dict()}")
         write_geojson(frame, VECTORS / f"{name}.geojson")
-
-    gauges = gpd.read_file(VECTORS / "gauges_streamflow.geojson")
-    transfer_gauges = gauges[
-        gauges["station"].str.contains(GAUGE_PATTERN, case=False, regex=True, na=False)
-    ].copy()
-    print(f"transfer gauges: {len(transfer_gauges)}")
-    write_geojson(transfer_gauges, VECTORS / "transfers_gauges.geojson")
 
 
 if __name__ == "__main__":

@@ -852,10 +852,63 @@ function addStormLayers(map: MapLibreMap): void {
   });
 }
 
+function arrowImage(color: string): ImageData {
+  // White arrowhead with a colored outline so it reads against the line.
+  const size = 28;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return new ImageData(size, size);
+  }
+  context.fillStyle = "#ffffff";
+  context.strokeStyle = color;
+  context.lineWidth = 3;
+  context.lineJoin = "round";
+  context.beginPath();
+  context.moveTo(5, 4);
+  context.lineTo(24, 14);
+  context.lineTo(5, 24);
+  context.closePath();
+  context.fill();
+  context.stroke();
+  return context.getImageData(0, 0, size, size);
+}
+
+function addFlowArrows(map: MapLibreMap, id: string, source: string, color: string, before?: string): void {
+  const imageId = `arrow-${id}`;
+  if (!map.hasImage(imageId)) {
+    map.addImage(imageId, arrowImage(color), { pixelRatio: 2 });
+  }
+  map.addLayer(
+    {
+      id,
+      type: "symbol",
+      source,
+      filter: ["==", ["get", "directed"], true],
+      layout: {
+        visibility: "none",
+        "symbol-placement": "line",
+        "symbol-spacing": 90,
+        "icon-image": imageId,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.8, 14, 1.2],
+        "icon-rotation-alignment": "map",
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+      },
+      paint: {
+        "icon-opacity": ["case", ["==", ["get", "direction"], "recorded"], 1, 0.55],
+      },
+    },
+    before,
+  );
+}
+
 function addTransferLayers(map: MapLibreMap): void {
   const before = firstSymbolLayer(map);
   const hidden = { visibility: "none" as const };
-  for (const file of ["tunnels", "pipelines", "canals", "structures", "gauges"]) {
+  for (const file of ["tunnels", "pipelines", "canals", "structures"]) {
     map.addSource(`transfers-${file}`, {
       type: "geojson",
       data: `./data/vectors/transfers_${file}.geojson`,
@@ -941,21 +994,10 @@ function addTransferLayers(map: MapLibreMap): void {
     },
     before,
   );
-  map.addLayer(
-    {
-      id: "transfers-gauges-points",
-      type: "circle",
-      source: "transfers-gauges",
-      layout: hidden,
-      paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 4.5, 13, 8],
-        "circle-color": ["case", ["get", "active"], "#c2185b", "#d9a0b8"],
-        "circle-stroke-color": "#ffffff",
-        "circle-stroke-width": 1.5,
-      },
-    },
-    before,
-  );
+  // Flow direction arrows, drawn only where NHD records the direction.
+  addFlowArrows(map, "transfers-canals-arrows", "transfers-canals", "#0f8a8a", before);
+  addFlowArrows(map, "transfers-pipelines-arrows", "transfers-pipelines", "#9b59b6", before);
+  addFlowArrows(map, "transfers-tunnels-arrows", "transfers-tunnels", "#5b2d8e", before);
 }
 
 // ---------------------------------------------------------------------------
@@ -1173,7 +1215,6 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
     "transfers-canals-fill",
     "transfers-structures-lines",
     "transfers-structures-fill",
-    "transfers-gauges-points",
     "watersheds-fill",
     "reservoirs-fill",
     "dams-points",
@@ -1260,10 +1301,17 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
     const length = properties.length_mi
       ? `<div class="popup-row"><span>Length</span><span>${Number(properties.length_mi).toFixed(2)} mi</span></div>`
       : "";
+    const directed =
+      properties.direction === "recorded"
+        ? "Recorded in NHD, solid arrows"
+        : properties.direction === "inferred"
+          ? "Inferred downhill from ground elevation, faded arrows"
+          : "Not recorded";
     return `
       <div class="popup-title">${escapeHtml(properties.label ?? "Conveyance feature")}</div>
       <div class="popup-sub">${escapeHtml(properties.name || "Unnamed")}</div>
       ${length}
+      <div class="popup-row"><span>Flow direction</span><span>${directed}</span></div>
       <div class="popup-row"><span>NHD code</span><span>${escapeHtml(properties.fcode ?? "")}</span></div>
       <div class="popup-row"><span>Source</span><span>${escapeHtml(properties.source ?? "")}</span></div>`;
   };
@@ -1282,13 +1330,6 @@ function bindPopups(map: MapLibreMap, openReservoirCard: (key: string) => void):
       }
     });
   }
-  map.on("click", "transfers-gauges-points", (event) => {
-    const properties = event.features?.[0]?.properties;
-    if (properties) {
-      popup(map, event, gaugeHtml(properties, "Transfer gauge"));
-    }
-  });
-
   const reservoirClick = (event: MapLayerMouseEvent): void => {
     const key = event.features?.[0]?.properties?.key as string | undefined;
     if (key) {
@@ -1578,10 +1619,10 @@ async function initialize(): Promise<void> {
         {
           id: "transfers-tunnels",
           label: "Tunnels",
-          note: "NHD tunnels and underground aqueducts",
+          note: "Arrows show flow, solid where NHD records it, faded where inferred",
           symbolCss:
             "background:repeating-linear-gradient(90deg,#5b2d8e 0 4px,transparent 4px 7px);height:5px;border-radius:2px",
-          layers: ["transfers-tunnels-lines"],
+          layers: ["transfers-tunnels-lines", "transfers-tunnels-arrows"],
           checked: false,
         },
         {
@@ -1589,7 +1630,7 @@ async function initialize(): Promise<void> {
           label: "Pipelines and siphons",
           note: "Surface and elevated conveyances",
           symbolCss: "background:#9b59b6;height:5px;border-radius:2px",
-          layers: ["transfers-pipelines-lines"],
+          layers: ["transfers-pipelines-lines", "transfers-pipelines-arrows"],
           checked: false,
         },
         {
@@ -1597,7 +1638,7 @@ async function initialize(): Promise<void> {
           label: "Canals and ditches",
           note: "Irrigation and diversion channels",
           symbolCss: "background:#0f8a8a;height:5px;border-radius:2px",
-          layers: ["transfers-canals-lines", "transfers-canals-fill"],
+          layers: ["transfers-canals-lines", "transfers-canals-fill", "transfers-canals-arrows"],
           checked: false,
         },
         {
@@ -1606,14 +1647,6 @@ async function initialize(): Promise<void> {
           note: "Dam, weir, intake, and outflow footprints",
           symbolCss: "background:#333333",
           layers: ["transfers-structures-lines", "transfers-structures-fill"],
-          checked: false,
-        },
-        {
-          id: "transfers-gauges",
-          label: "Transfer gauges",
-          note: "USGS gauges on canals, diversions, and reservoir inflows",
-          symbolCss: "background:#c2185b;border-radius:50%",
-          layers: ["transfers-gauges-points"],
           checked: false,
         },
       ]);
